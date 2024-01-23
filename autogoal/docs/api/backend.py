@@ -3,112 +3,61 @@ import websockets
 from websockets.exceptions import ConnectionClosedOK
 import subprocess
 import os
-import base64
-
-async def receive_myfile(data,websocket):
-    response = f"Received your message: {data}"
-    await websocket.send(response)
-    print(f"Sent response: {response}")
-
-    # Receive the filename
-    filename = await websocket.recv()
-    print(f"Received filename: {filename}")
-    response = f"Received your message: {filename}"
-    await websocket.send(response)
-
-    # Receive the file data
-    file_data = await websocket.recv()
-    print(f"Received file data")
-
-    # Decode the file data
-    file_data = base64.b64decode(file_data)
-
-    # Write the file data to a file
-    with open(f'{filename}.zip', 'wb') as f:
-        f.write(file_data)
-
-    response = f"Saved file"
-    await websocket.send(response)
-    print(f"Saved file: {filename}")
-
-async def execute_file(data,websocket):
-    response = f"Received your message: {data}"
-    await websocket.send(response)
-    print(f"Sent response: {response}")
-    filename = ""
-    while True:
-        data = await websocket.recv()
-        print(f"Received message: {data}")
-        filename = data
-        break
-    await websocket.send("Executing ...")
-    return filename
-
-async def check(data,websocket):
-    response = f"Received your message: {data}"
-    await websocket.send(response)
-    print(f"Sent response: {response}")
-    filename = ""
-    while True:
-        data = await websocket.recv()
-        print(f"Received message: {data}")
-        if data == "Recover":
-            with open(f'{filename}.txt', 'r') as f:
-                await websocket.send(f.read())
-            break
-        # Check if the file exists
-        elif os.path.exists(f"{data}.txt"):
-            await websocket.send("File exists")
-            print(f"Sent response: File exists")
-            filename = data
-        else:
-            await websocket.send("File does not exist maybe because is still running")
-            break
+import json
 
 async def handle_connection(websocket, path):
     try:
         print(f"New connection from {websocket.remote_address}")
         print("Waiting for messages...")
-        cont = 0
-        filename = ""
-        execute = False
-        while True:
-            data = await websocket.recv()
-            print(f"Received message: {data}")
-            if data == "exit":
-                break
-            elif data == "Check":
-                await check(data,websocket)
-                break
-            elif data == "Execute":
-                filename = await execute_file(data,websocket)
-                execute = True
-                break
-            elif data == "Send file":
-                await receive_myfile(data,websocket)
-                break
-            elif cont == 0:
-                filename = data
-                with open(f'{filename}.py', 'w') as f:
-                    pass
-                cont = 1
-            else:
-                with open(f'{filename}.py', 'a') as f:
-                    f.write(f"{data}\n")
+        data = await websocket.recv()
+        print(f"Received message:")
+        if data == "exit":
+            print(f"Received exit message")
+        else:
+            # Store the data in a json file
+            """
+            with open('Data.json', 'w') as f:
+                json.dump(data_dict, f)
+            """ 
+            # Convert the JSON string to a Python dictionary
+            data_dict = json.loads(data)
 
-            response = f"Received your message: {data}"
-            await websocket.send(response)
-            print(f"Sent response: {response}")
+            with open('Data.json', 'w') as f:
+                json.dump(data_dict, f)
 
-        if cont > 0:
-            await websocket.send("Goodbye!")
+            # Now you can access the elements in the dictionary
+            metrica = data_dict['metrica']
+            inputVal = data_dict['inputVal']
+            crossval = data_dict['crossval']
+            limite = data_dict['limite']
+            seleccionadas = json.loads(data_dict['seleccionadas'])
+            datosCSV = json.loads(data_dict['datosCSV'])
+
+            # Check if 'seleccionadas' and 'datosCSV' are strings
+            if isinstance(seleccionadas, str):
+                seleccionadas = json.loads(seleccionadas)
+            if isinstance(datosCSV, str):
+                datosCSV = json.loads(datosCSV)
+
+            # Access the 'variablesPredictoras' and 'variablesObjetivo' lists
+            variablesPredictoras = seleccionadas['variablesPredictoras']
+            variablesObjetivo = seleccionadas['variablesObjetivo']
+
+            # Print some data to check
+            print(f"Datos CSV: {datosCSV}")
+            print(f"Metrica: {metrica}")
+            print(f"Input Value: {inputVal}")
+            print(f"Crossval: {crossval}")
+            print(f"Limite: {limite}")
+            print(f"Seleccionadas: {seleccionadas}")   
+            print(f"Variables Predictoras: {variablesPredictoras}")
+            print(f"Variables Objetivo: {variablesObjetivo}") 
+
+        response = f"Receive  message OK"
+        await websocket.send(response) 
+        print(f"Sent response: {response}")
         await websocket.close()
         print("Connection closed")
-        if execute == True:
-            # Execute the Python file
-            
-            subprocess.Popen(["python", f"{filename}.py"])
-
     except ConnectionClosedOK:
         print("Connection closed by Exception ConnectionClosedOK")
 
@@ -119,15 +68,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-"""
-# Execute the Python file
-        subprocess.run(["python", f"{filename}.py"])
-        # Read the answer from another file
-        answer = ""
-        with open("Resultado.txt", "r") as f:
-            answer = f.read()
-        # Send the answer as a response
-        await websocket.send(answer)
-"""
-

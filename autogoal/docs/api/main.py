@@ -10,18 +10,20 @@ async def get():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    async with websockets.connect('ws://127.0.0.1:8765/autogoal/docs/fastApi') as other_websocket:
-        while True:
+    try:
+        await websocket.accept()
+        async with websockets.connect('ws://127.0.0.1:8765/autogoal/autogoal/docs/api') as other_websocket:
             data = await websocket.receive_text()
             print(f"Received response: {data}")
             await other_websocket.send(data)
             response = await other_websocket.recv()
             print(f"Sending answer: {response}")
             await websocket.send_text(response)
-            if data in ["exit","Recover"] or response in ["Executing ...","File does not exist maybe because is still running","Saved file"]:
-                break
-        await other_websocket.close()
-        await websocket.close()
-        print("Connections closed")
+            await other_websocket.close()
+            await websocket.close()
+            print("Connections closed")
+    except Exception as e:
+        print(f"Error in WebSocket route: {e}")
+        # Respond with an error if needed
+        await websocket.close(code=4000, reason="Internal Server Error")
 
