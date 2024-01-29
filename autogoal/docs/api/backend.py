@@ -4,6 +4,9 @@ from websockets.exceptions import ConnectionClosedOK
 import subprocess
 import os
 import json
+from autogoal.ml import AutoML
+from autogoal.utils import Min, Gb, Hour, Sec
+
 
 async def handle_connection(websocket, path):
     try:
@@ -52,6 +55,14 @@ async def handle_connection(websocket, path):
             print(f"Seleccionadas: {seleccionadas}")   
             print(f"Variables Predictoras: {variablesPredictoras}")
             print(f"Variables Objetivo: {variablesObjetivo}") 
+
+            # Create the AutoML object
+            automl = AutoML(
+                #input=
+                #output=
+                search_timeout=limite * Sec,
+            )
+            
 
         response = f"Receive  message OK"
         await websocket.send(response) 
