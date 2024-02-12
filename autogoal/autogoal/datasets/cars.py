@@ -26,7 +26,7 @@ def load(representation="onehot"):
 
         X.append(temp)
         y.append(clean_line[6])
-
+    
     if representation == "numeric":
         return _load_numeric(X, y)
     elif representation == "onehot":

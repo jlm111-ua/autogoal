@@ -3,9 +3,10 @@ from autogoal.datasets import cars
 from autogoal.kb import MatrixContinuousDense, Supervised, VectorCategorical
 from autogoal.ml import AutoML
 from sklearn.feature_extraction import DictVectorizer
-
 # Load dataset
 X, y = cars.load()
+
+breakpoint()
 
 # Instantiate AutoML and define input/output types
 automl = AutoML(
