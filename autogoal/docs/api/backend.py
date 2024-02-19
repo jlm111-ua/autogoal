@@ -4,11 +4,13 @@ from websockets.exceptions import ConnectionClosedOK
 import subprocess
 import os
 import json
-from autogoal.ml import AutoML
-from autogoal.utils import Min, Gb, Hour, Sec
 import base64
 import numpy as np
 from scipy import sparse as sp
+from autogoal.ml import AutoML, calinski_harabasz_score
+from autogoal.utils import Min, Gb, Hour, Sec
+from autogoal.kb import MatrixContinuousSparse, VectorDiscrete
+from autogoal.search import ConsoleLogger
 
 async def handle_connection(websocket, path):
     print(f"New connection from {websocket.remote_address}")
@@ -29,7 +31,7 @@ async def handle_connection(websocket, path):
         print(f"Sent response: {response}")
 
         namefile = await websocket.recv()
-        namefile += '.txt'  # Añade la extensión .txt al nombre del archivo
+        namefile += '.data' # Añade la extensión .txt al nombre del archivo
         response = f"Received Namefile message OK"
         await websocket.send(response)
         print(f"Sent response: {response}")
@@ -39,15 +41,18 @@ async def handle_connection(websocket, path):
 
         # Divide los datos en líneas
         lines = data.split('\n')
-        # Elimina la última línea
-        lines = lines[:-1]
-        # Une las líneas restantes en una sola cadena
-        data_without_last_line = '\n'.join(lines)
+        # Check if the namefile contains "test"
+        if "test" in namefile:
+            # If it does, remove the last line
+            lines = lines[:-1]
+
+        # Join the remaining lines into a single string
+        lines = '\n'.join(lines)
         
         # Abre el archivo en modo de escritura. Si el archivo no existe, se creará.
         with open(namefile, 'w') as f: #Si se cambia la w por la a se añade al final del archivo
             # Escribe los datos en el archivo
-            f.write(data_without_last_line)
+            f.write(lines)
     else:
         response = f"Receive Json message OK"
         await websocket.send(response)
@@ -89,18 +94,22 @@ async def handle_connection(websocket, path):
         tam = len(variablesPredictoras)
         print(f"Tam: {tam}")
 
-        train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.txt", "r")
-        train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.txt", "r")
-        valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.txt", "r")
-        valid_labels = open("/home/coder/autogoal/autogoal/docs/api/train_data.txt", "r")
+        train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
+        train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
+        valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.data", "r")
+        valid_labels = open("/home/coder/autogoal/autogoal/docs/api/test_labels.data", "r")
 
-        Xtrain = sp.lil_matrix((800, 100000), dtype=int)
+        # Count the number of lines in each file
+        num_lines_train_data = sum(1 for line in train_data)
+        num_lines_valid_data = sum(1 for line in valid_data)
+
+        Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=int)
         ytrain = []
-        Xvalid = sp.lil_matrix((350, 100000), dtype=int)
+        Xvalid = sp.lil_matrix((num_lines_valid_data, tam), dtype=int)
         yvalid = []
 
         for row, line in enumerate(train_data):
-            for col in line.split():
+            for col in line.strip().split():
                 Xtrain[row, int(col) - 1] = 1
 
         for row, line in enumerate(valid_data):
@@ -113,27 +122,34 @@ async def handle_connection(websocket, path):
         for line in valid_labels:
             yvalid.append(int(line))
 
-        Xtrain = Xtrain.tocsr()
-        ytrain = np.asarray(ytrain)
-        Xvalid = Xvalid.tocsr()
-        yvalid = np.asarray(yvalid)
+        X_train = Xtrain.tocsr()
+        y_train = np.asarray(ytrain)
+        X_test = Xvalid.tocsr()
+        y_test = np.asarray(yvalid)
 
-        # #Create the AutoML object
-        # automl = AutoML(
-        #     input=(????, Supervised[VectorCategorical]),
-        #     output=VectorCategorical,
-        #     search_algorithm=metrica,
-        #     search_iterations=limite,
-        #     cross_validation_steps=crossval,
-        #         # crossval->cross_validation de 0 a 30
-        #         # %val NO -> tam_validacion(validation_split) de 0 a 5
-        #         # limite lim_iterations de 0 a 10000
-        #         # timeout
-        #         # pipelime timeout
-        # )
+        #Create the AutoML object
+        automl = AutoML(
+            input=MatrixContinuousSparse,
+            output=VectorDiscrete,
+            # search_algorithm=metrica,
+            # search_iterations=limite,
+            # cross_validation_steps=crossval,
+            #     # crossval->cross_validation de 0 a 30
+            #     # %val NO -> tam_validacion(validation_split) de 0 a 5
+            #     # limite lim_iterations de 0 a 10000
+            #     # timeout
+            #     # pipelime timeout
+            objectives=calinski_harabasz_score,
+            # Search space configuration
+            search_timeout=60 * Sec,
+            evaluation_timeout=8 * Sec,
+            memory_limit=2 * Gb,
+            validation_split=0.3,
+            cross_validation_steps=2
+        )
 
-        # # Run the pipeline search process
-        # automl.fit(X_train, y_train, logger=RichLogger())
+        # Run the pipeline search process
+        automl.fit(X_train, logger=ConsoleLogger())
 
         # # Export the result of the search process onto a brand new image called "AutoGOAL-Cars"
         # automl.export_portable(generate_zip=True)
