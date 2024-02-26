@@ -1,7 +1,6 @@
 import asyncio
 import websockets
 from websockets.exceptions import ConnectionClosedOK
-import subprocess
 import os
 import json
 import base64
@@ -9,14 +8,16 @@ import numpy as np
 from scipy import sparse as sp
 from autogoal.ml import AutoML, calinski_harabasz_score
 from autogoal.utils import Min, Gb, Hour, Sec
-from autogoal.kb import MatrixContinuousSparse, VectorDiscrete
-from autogoal.search import ConsoleLogger
+from autogoal.search import RichLogger, ConsoleLogger
+from autogoal.kb import *
 
 async def handle_connection(websocket, path):
     print(f"New connection from {websocket.remote_address}")
     print("Waiting for messages...")
     data = await websocket.recv()
     print(f"Received message")
+    dataType = ""
+
     if data == "get":
         # Read the zip file in binary mode
         with open('production_assets.zip', 'rb') as f:
@@ -53,6 +54,7 @@ async def handle_connection(websocket, path):
         with open(namefile, 'w') as f: #Si se cambia la w por la a se añade al final del archivo
             # Escribe los datos en el archivo
             f.write(lines)
+
     else:
         response = f"Receive Json message OK"
         await websocket.send(response)
@@ -72,6 +74,8 @@ async def handle_connection(websocket, path):
         limite = data_dict['limite']
         seleccionadas = json.loads(data_dict['seleccionadas'])
         tipo = data_dict['problemaSeleccionado']
+        max_time = data_dict['maxTime']
+        dataType = data_dict['dataType']
 
         # Check if 'seleccionadas' is a string
         if isinstance(seleccionadas, str):
@@ -81,19 +85,28 @@ async def handle_connection(websocket, path):
         variablesPredictoras = seleccionadas['variablesPredictoras']
         variablesObjetivo = seleccionadas['variablesObjetivo']
 
-        # Print some data to check
-        print(f"Metrica: {metrica}")
-        print(f"Input Value: {inputVal}")
-        print(f"Crossval: {crossval}")
-        print(f"Limite: {limite}")
-        print(f"Seleccionadas: {seleccionadas}")   
-        print(f"Variables Predictoras: {variablesPredictoras}")
-        print(f"Variables Objetivo: {variablesObjetivo}") 
-        print(f"Tipo: {tipo}")
+        # # Print some data to check
+        # print(f"Metrica: {metrica}")
+        # print(f"Input Value: {inputVal}")
+        # print(f"Crossval: {crossval}")
+        # print(f"Limite: {limite}")
+        # print(f"Seleccionadas: {seleccionadas}")   
+        # print(f"Variables Predictoras: {variablesPredictoras}")
+        # print(f"Variables Objetivo: {variablesObjetivo}") 
+        # print(f"Tipo: {tipo}")
+        # print(f"Max Time: {max_time}")
+        # print(f"Data Type: {dataType}")
 
         tam = len(variablesPredictoras)
         print(f"Tam: {tam}")
+    
+    response = f"Ending connection"
+    await websocket.send(response) 
+    print(f"Sent response: {response}")
+    await websocket.close()
+    print("Connection closed")
 
+    if dataType == "integer":   
         train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
         train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
         valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.data", "r")
@@ -108,13 +121,21 @@ async def handle_connection(websocket, path):
         Xvalid = sp.lil_matrix((num_lines_valid_data, tam), dtype=int)
         yvalid = []
 
-        for row, line in enumerate(train_data):
-            for col in line.strip().split():
-                Xtrain[row, int(col) - 1] = 1
+        # Reset the file pointer to the beginning of the file
+        train_data.seek(0)
+        valid_data.seek(0)
 
-        for row, line in enumerate(valid_data):
-            for col in line.split():
-                Xvalid[row, int(col) - 1] = 1
+        for row, line in enumerate(train_data):
+            column = 0
+            for col in line.strip().split():
+                Xtrain[int(row), column] = int(col)
+                column += 1
+        
+        for row,line in enumerate(valid_data):
+            column = 0
+            for col in line.strip().split():
+                Xvalid[int(row), column] = int(col)
+                column += 1
 
         for line in train_labels:
             ytrain.append(int(line))
@@ -122,43 +143,47 @@ async def handle_connection(websocket, path):
         for line in valid_labels:
             yvalid.append(int(line))
 
-        X_train = Xtrain.tocsr()
-        y_train = np.asarray(ytrain)
-        X_test = Xvalid.tocsr()
-        y_test = np.asarray(yvalid)
-
         #Create the AutoML object
+        # automl = AutoML(
+        #     input=MatrixContinuousSparse,
+        #     output=VectorDiscrete,
+        #     # search_algorithm=metrica,
+        #     # search_iterations=limite,
+        #     # cross_validation_steps=crossval,
+        #     #     # crossval->cross_validation de 0 a 30
+        #     #     # %val NO -> tam_validacion(validation_split) de 0 a 5
+        #     #     # limite lim_iterations de 0 a 10000
+        #     #     # timeout
+        #     #     # pipelime timeout
+        #     objectives=calinski_harabasz_score,
+        #     # Search space configuration
+        #     search_timeout=60 * Sec,
+        #     evaluation_timeout=8 * Sec,
+        #     memory_limit=2 * Gb,
+        #     validation_split=0.3,
+        #     cross_validation_steps=2
+        #)
+
+        # Instantiate AutoML and define input/output types
         automl = AutoML(
-            input=MatrixContinuousSparse,
-            output=VectorDiscrete,
-            # search_algorithm=metrica,
-            # search_iterations=limite,
-            # cross_validation_steps=crossval,
-            #     # crossval->cross_validation de 0 a 30
-            #     # %val NO -> tam_validacion(validation_split) de 0 a 5
-            #     # limite lim_iterations de 0 a 10000
-            #     # timeout
-            #     # pipelime timeout
-            objectives=calinski_harabasz_score,
-            # Search space configuration
-            search_timeout=60 * Sec,
-            evaluation_timeout=8 * Sec,
-            memory_limit=2 * Gb,
-            validation_split=0.3,
-            cross_validation_steps=2
+            input=(MatrixContinuous, Supervised[VectorCategorical]),
+            output=VectorCategorical,
         )
 
+        print(Xtrain)
+        print(ytrain)
         # Run the pipeline search process
-        automl.fit(X_train, logger=ConsoleLogger())
+        automl.fit(Xtrain, ytrain, logger=RichLogger())
 
-        # # Export the result of the search process onto a brand new image called "AutoGOAL-Cars"
-        # automl.export_portable(generate_zip=True)
-    
-    response = f"Ending connection"
-    await websocket.send(response) 
-    print(f"Sent response: {response}")
-    await websocket.close()
-    print("Connection closed")
+        # Report the best pipelines
+        print(automl.best_pipelines_)
+        print(automl.best_scores_)
+
+        # Export the result of the search process onto a brand new image called "AutoGOAL-Cars"
+        automl.export_portable(generate_zip=True)
+
+    else:
+        print("Data type is not integer")
 
 async def main():
     async with websockets.serve(handle_connection, "127.0.0.1", 8765):

@@ -18,6 +18,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 data = await websocket.receive_text()
                 await other_websocket.send(data)
                 response = await other_websocket.recv()
+                # print(f"{response}")
                 await websocket.send_text(response)
                 if response == "Ending connection":
                     break
