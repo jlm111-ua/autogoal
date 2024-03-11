@@ -1,1 +1,0 @@
-{"metrica": "accuracy", "inputVal": "2.5", "crossval": "15", "limite": "5000", "maxTime": "300", "dataType": "integer", "seleccionadas": "\"{\\\"variablesPredictoras\\\":[\\\"Uniformity of Cell Size\\\",\\\"Uniformity of Cell Shape\\\",\\\"Bare Nuclei\\\",\\\"Bland Chromatin\\\"],\\\"variablesObjetivo\\\":[\\\"Class\\\"]}\"", "problemaSeleccionado": "Clasificacion"}

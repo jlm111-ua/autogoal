@@ -8,15 +8,77 @@ import numpy as np
 from scipy import sparse as sp
 from autogoal.ml import AutoML, calinski_harabasz_score
 from autogoal.utils import Min, Gb, Hour, Sec
-from autogoal.search import RichLogger, ConsoleLogger
+from autogoal.search import RichLogger, ConsoleLogger, Logger
 from autogoal.kb import *
+import requests
+
+import autogoal.logging
+
+import requests
+
+class WebSocketLogger(Logger):
+    def __init__(self, uri, ip_data) -> None:
+        self.uri = uri
+        self.logger = autogoal.logging.logger()
+        self.ip_data = ip_data
+
+    def send_message(self, message):
+        url = f"{self.uri}/wsTrain"
+        data = {'ip_data': self.ip_data, 'message': message}
+        try:
+            response = requests.post(url, json=data)
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error de conexión: {e}")
+
+    def begin(self, generations, pop_size):
+        self.send_message("Search starting")
+
+    def sample_solution(self, solution):
+        self.send_message(f"Evaluating pipeline: {repr(solution)}")
+
+    def eval_solution(self, solution, fitness):
+        self.send_message(f"📈 Fitness={fitness}")
+
+    # def error(self, e: Exception, solution):
+    #     self.send_message(f"⚠️ Error: {e}")
+
+    def start_generation(self, generations, best_solutions, best_fns):
+        bests = "\n".join(f"Best_{i}: {fn}" for i, fn in enumerate(best_fns))
+        self.send_message(f"New generation - Remaining={generations}\n{bests}")
+
+    def update_best(
+        self,
+        solution,
+        fn,
+        new_best_solutions,
+        best_solutions,
+        new_best_fns,
+        best_fns,
+        new_dominated_solutions,
+    ):
+        self.send_message(f"🔥 New Best found {solution} {fn}")
+        self.send_message(f"🔥 {len(new_best_solutions)} optimal solutions so far. Improved: {new_best_fns}. Previous {best_fns}.")
+
+    def end(self, best_solutions, best_fns):
+        self.send_message("Search finished")
+
+        if len(best_fns) == 0:
+            self.send_message("No solutions found")
+        else:
+            for i, (best_solution, best_fn) in enumerate(zip(best_solutions, best_fns)):
+                self.send_message(f"{i}🌟 Optimal Solution {best_fn or 0}")
+                self.send_message(repr(best_solution))
+
+        self.send_message("Search finished")
 
 async def handle_connection(websocket, path):
     print(f"New connection from {websocket.remote_address}")
     print("Waiting for messages...")
-    data = await websocket.recv()
+    data_bytes = await websocket.recv()
+    data = data_bytes.decode('utf-8')
     print(f"Received message")
     dataType = ""
+    tam = 0
 
     if data == "get":
         # Read the zip file in binary mode
@@ -31,14 +93,16 @@ async def handle_connection(websocket, path):
         await websocket.send(response)
         print(f"Sent response: {response}")
 
-        namefile = await websocket.recv()
+        namefile_bytes = await websocket.recv()
+        namefile = namefile_bytes.decode('utf-8')
         namefile += '.data' # Añade la extensión .txt al nombre del archivo
         response = f"Received Namefile message OK"
         await websocket.send(response)
         print(f"Sent response: {response}")
 
         # Read the data from the websocket
-        data = await websocket.recv()
+        data_bytes = await websocket.recv()
+        data = data_bytes.decode('utf-8')
 
         # Divide los datos en líneas
         lines = data.split('\n')
@@ -56,10 +120,15 @@ async def handle_connection(websocket, path):
             f.write(lines)
 
     else:
+        print(f"Data: {data}")
         response = f"Receive Json message OK"
         await websocket.send(response)
         print(f"Sent response: {response}")
-        data = await websocket.recv()
+        data_bytes = await websocket.recv()
+        print(data_bytes)
+        
+        data = data_bytes.decode('utf-8')
+        print(f"Data: {data}")
 
         # Convert the JSON string to a Python dictionary
         data_dict = json.loads(data)
@@ -101,12 +170,20 @@ async def handle_connection(websocket, path):
         print(f"Tam: {tam}")
     
     response = f"Ending connection"
+    if dataType != "":
+        response = f"Starting training"
     await websocket.send(response) 
     print(f"Sent response: {response}")
-    await websocket.close()
-    print("Connection closed")
-
+    print(f"tam: {tam}")
+    
     if dataType == "integer":   
+        ip_data = await websocket.recv()
+        await websocket.close()
+        print(f"IP data: {ip_data}")
+
+        # loop = asyncio.get_running_loop()
+        # result = await loop.run_in_executor(None,train_integer, ip_data,tam)
+
         train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
         train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
         valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.data", "r")
@@ -143,6 +220,11 @@ async def handle_connection(websocket, path):
         for line in valid_labels:
             yvalid.append(int(line))
 
+        # print(Xtrain)
+        # print(Xvalid)
+        # print(ytrain)
+        # print(yvalid)
+
         #Create the AutoML object
         # automl = AutoML(
         #     input=MatrixContinuousSparse,
@@ -168,12 +250,15 @@ async def handle_connection(websocket, path):
         automl = AutoML(
             input=(MatrixContinuous, Supervised[VectorCategorical]),
             output=VectorCategorical,
+            search_timeout=40 * Sec,
+            evaluation_timeout=8 * Sec,
         )
 
-        print(Xtrain)
-        print(ytrain)
-        # Run the pipeline search process
-        automl.fit(Xtrain, ytrain, logger=RichLogger())
+        uri = f"http://172.17.0.2:4239"
+        mylogger = WebSocketLogger(uri,ip_data)
+
+        # # Run the pipeline search process
+        automl.fit(Xtrain, ytrain, logger=mylogger)
 
         # Report the best pipelines
         print(automl.best_pipelines_)
@@ -184,6 +269,9 @@ async def handle_connection(websocket, path):
 
     else:
         print("Data type is not integer")
+
+    await websocket.close()
+    print("Connection closed")
 
 async def main():
     async with websockets.serve(handle_connection, "127.0.0.1", 8765):
