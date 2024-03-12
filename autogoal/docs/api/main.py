@@ -13,27 +13,6 @@ class Message(BaseModel):
 async def get():
     return {"message": "Hello World"}
 
-# @app.websocket("/wsTrain")
-# async def websocket_endpoint(websocket: WebSocket):
-#     try:
-#         await websocket.accept()
-#         data = await websocket.receive_text()
-        
-#         # Divide la cadena de texto en partes
-#         ip = data.split(": ")[1].replace('"', '')
-#         print(f"IP: {ip}")
-
-#         async with websockets.connect(f'ws://{ip}:3000/exec') as other_websocket:
-#             response = ""
-#             data = await websocket.receive_text()
-#             await other_websocket.send(data)
-#             response = await other_websocket.recv()
-#             print(f"Response: {response}")
-#             await other_websocket.close()
-#             await websocket.close()
-#     except Exception as e:
-#         print(f"Error in WebSocket route: {e}")
-
 @app.post("/wsTrain")
 async def receive_message(message: Message):
     ip_data = message.ip_data
