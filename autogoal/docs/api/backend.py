@@ -11,6 +11,23 @@ from autogoal.utils import Min, Gb, Hour, Sec
 from autogoal.kb import *
 import requests
 from autogoal.logging.loggerClass import WebSocketLogger
+import zipfile
+
+def agregar_carpeta_a_zip(archivo_zip, carpeta):
+    for raiz, _, archivos in os.walk(carpeta):
+        for archivo in archivos:
+            ruta_completa = os.path.join(raiz, archivo)
+            archivo_zip.write(ruta_completa, os.path.relpath(ruta_completa, carpeta))
+
+def exportar_carpeta_con_descripcion(archivo_zip, directorio_raiz, valor_descripcion):
+    for nombre_carpeta in os.listdir(directorio_raiz):
+        carpeta_actual = os.path.join(directorio_raiz, nombre_carpeta)
+        descripcion = os.path.join(carpeta_actual, "description.txt")
+        if os.path.exists(descripcion):
+            with open(descripcion, "r") as file:
+                if valor_descripcion in file.read():
+                    agregar_carpeta_a_zip(archivo_zip, carpeta_actual)
+                    return
 
 async def handle_connection(websocket, path):
     print(f"New connection from {websocket.remote_address}")
@@ -20,10 +37,58 @@ async def handle_connection(websocket, path):
     print(f"Received message")
     dataType = ""
     tam = 0
+    directorio_principal= '/home/coder/autogoal/autogoal/docs/api/temporalModels'
 
     if data == "get":
         # Read the zip file in binary mode
         with open('production_assets.zip', 'rb') as f:
+            # Encode the binary data to base64 string
+            base64_encoded = base64.b64encode(f.read()).decode('utf-8')
+            # Send the base64 string over websocket
+            await websocket.send(base64_encoded)
+
+    elif data == "getTrainModels":
+        respuesta = []
+        for nombre_carpeta in os.listdir(directorio_principal):
+            ruta_carpeta = os.path.join(directorio_principal, nombre_carpeta)
+
+            if os.path.isdir(ruta_carpeta):
+                print(f"Nombre carpeta: {nombre_carpeta}")
+
+            ruta_archivo_txt = os.path.join(ruta_carpeta, f'description.txt')
+            if os.path.isfile(ruta_archivo_txt):
+                print(f'Leyendo archivo description.txt...')
+                
+                # Leer el contenido del archivo .txt
+                with open(ruta_archivo_txt, 'r') as archivo:
+                    contenido = archivo.read()
+                    print(f'Contenido: {contenido}')
+                    respuesta.append(contenido)
+                    
+            else:
+                print(f'No se encontró archivo description.txt en la carpeta {nombre_carpeta}')
+                respuesta.append(f'No se encontró archivo description.txt en la carpeta {nombre_carpeta}')
+        response = f"{respuesta}"
+        await websocket.send(response)
+        await websocket.close()
+        print("Connection closed")
+
+        return 
+    
+    elif data == "getOldModel":
+        response = f"Received Getting old model OK"
+        await websocket.send(response)
+        print(f"Sent response: {response}")
+
+        description_file_encode = await websocket.recv()
+        description_file = description_file_encode.decode('utf-8')
+        archivo_zip_salida = "Old_solution.zip"
+
+        with zipfile.ZipFile(archivo_zip_salida, "w", zipfile.ZIP_DEFLATED) as archivo_zip:
+            exportar_carpeta_con_descripcion(archivo_zip, directorio_principal, description_file)
+
+        # Read the zip file in binary mode
+        with open('Old_solution.zip', 'rb') as f:
             # Encode the binary data to base64 string
             base64_encoded = base64.b64encode(f.read()).decode('utf-8')
             # Send the base64 string over websocket
@@ -203,9 +268,9 @@ async def handle_connection(websocket, path):
         print(automl.best_scores_)
 
         # Export the result of the search process onto a brand new image called "AutoGOAL-Cars"
-        automl.export_portable(path="/home/coder/autogoal/autogoal/docs/api/temporalModels",generate_zip=True,identifier="Cancer_Mama")
+        automl.export_portable(path="/home/coder/autogoal/autogoal/docs/api/temporalModels",generate_zip=True,identifier="Cancer_Mama_v3")
 
-    else:
+    elif dataType != "":
         print("Data type is not integer")
 
     await websocket.close()

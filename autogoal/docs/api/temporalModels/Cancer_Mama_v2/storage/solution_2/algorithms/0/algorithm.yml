@@ -1,0 +1,8 @@
+module: '''autogoal_sklearn._generated.KNeighborsTransformer'''
+name: KNeighborsTransformer
+params:
+  algorithm: kd_tree
+  leaf_size: 1
+  mode: distance
+  n_neighbors: 1
+  p: 2

@@ -43,6 +43,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     data = await websocket.receive_bytes()  # Recibimos los datos como bytes
                 except Exception as e:
                     print(f"Error receiving text from websocket: {e}")
+                if data.decode('utf-8') == "Finished":
+                    break
                 await other_websocket.send(data)
                 response = await other_websocket.recv()
                 print(f"Response: {response}")

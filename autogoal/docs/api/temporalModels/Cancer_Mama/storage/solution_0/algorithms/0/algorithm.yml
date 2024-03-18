@@ -1,0 +1,8 @@
+module: '''autogoal_sklearn._generated.LogisticRegression'''
+name: LogisticRegression
+params:
+  C: 9.991
+  dual: false
+  fit_intercept: true
+  multi_class: multinomial
+  penalty: l2

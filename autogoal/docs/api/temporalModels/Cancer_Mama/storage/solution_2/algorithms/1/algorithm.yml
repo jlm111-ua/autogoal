@@ -1,0 +1,6 @@
+module: '''autogoal_sklearn._generated.KBinsDiscretizer'''
+name: KBinsDiscretizer
+params:
+  encode: ordinal
+  n_bins: 2
+  strategy: kmeans
