@@ -61,15 +61,19 @@ async def handle_connection(websocket, path):
                 
                 # Leer el contenido del archivo .txt
                 with open(ruta_archivo_txt, 'r') as archivo:
-                    contenido = archivo.read()
-                    print(f'Contenido: {contenido}')
-                    respuesta.append(contenido)
+                    lineas = archivo.readlines()
+                    # Convertir cada línea en una lista de Python, si es necesario
+                    lineas = [json.loads(linea) if isinstance(linea, str) and linea.startswith('[') and linea.endswith(']') else linea for linea in lineas]
+                    # Agregar las líneas como una sublista a la lista respuesta
+                    respuesta.append(lineas)
                     
             else:
                 print(f'No se encontró archivo description.txt en la carpeta {nombre_carpeta}')
                 respuesta.append(f'No se encontró archivo description.txt en la carpeta {nombre_carpeta}')
-        response = f"{respuesta}"
-        await websocket.send(response)
+
+        # Convertir la lista respuesta a formato JSON
+        respuesta_json = json.dumps(respuesta)
+        await websocket.send(respuesta_json)
         await websocket.close()
         print("Connection closed")
 
@@ -151,6 +155,8 @@ async def handle_connection(websocket, path):
         tipo = data_dict['problemaSeleccionado']
         max_time = data_dict['maxTime']
         dataType = data_dict['dataType']
+        title = data_dict['title']
+        descripcion = data_dict['description']
 
         # Check if 'seleccionadas' is a string
         if isinstance(seleccionadas, str):
@@ -267,8 +273,22 @@ async def handle_connection(websocket, path):
         print(automl.best_pipelines_)
         print(automl.best_scores_)
 
+        identifier_file = "Cancer_Mama_v2"
+
         # Export the result of the search process onto a brand new image called "AutoGOAL-Cars"
-        automl.export_portable(path="/home/coder/autogoal/autogoal/docs/api/temporalModels",generate_zip=True,identifier="Cancer_Mama_v3")
+        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{idenfier}",generate_zip=True,identifier=identifier_file)
+
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{idenfier}", f'description.txt'), 'w') as f:
+            f.write(f"Nombre: {title}")
+            f.write(f"Descripción: {descripcion}")
+            f.write(f"Tipo de problema: {tipo}")
+            f.write(f"Variables predictoras: {variablesPredictoras}")
+            f.write(f"Variables objetivo: {variablesObjetivo}")
+            f.write(f"Datatype: {dataType}")
+            f.write(f"Metrica: {metrica}")
+        
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{idenfier}", "automl.pkl"), "wb") as f:
+            pickle.dump(automl, f)
 
     elif dataType != "":
         print("Data type is not integer")

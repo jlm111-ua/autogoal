@@ -24,38 +24,49 @@
 
 # # Close the file
 # file.close()
-from scipy import sparse as sp
-import numpy as np
+# from scipy import sparse as sp
+# import numpy as np
 
-train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
-train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
-valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.data", "r")
-valid_labels = open("/home/coder/autogoal/autogoal/docs/api/test_labels.data", "r")
+# train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
+# train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
+# valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.data", "r")
+# valid_labels = open("/home/coder/autogoal/autogoal/docs/api/test_labels.data", "r")
 
-# Count the number of lines in each file
-num_lines_train_data = sum(1 for line in train_data)
-num_lines_valid_data = sum(1 for line in valid_data)
-ytrain = []
+# # Count the number of lines in each file
+# num_lines_train_data = sum(1 for line in train_data)
+# num_lines_valid_data = sum(1 for line in valid_data)
+# ytrain = []
 
-print(num_lines_train_data)
+# print(num_lines_train_data)
 
-# Reset the file pointer to the beginning of the file
-train_data.seek(0)
+# # Reset the file pointer to the beginning of the file
+# train_data.seek(0)
 
-Xtrain = sp.lil_matrix((num_lines_train_data, 7), dtype=int)
-print(Xtrain.shape)
+# Xtrain = sp.lil_matrix((num_lines_train_data, 7), dtype=int)
+# print(Xtrain.shape)
 
-# How can I add the train_data into the Xtrain matrix?
-for row, line in enumerate(train_data):
-	column = 0
-	for col in line.strip().split():
-		Xtrain[int(row), column] = int(col)
-		column += 1
+# # How can I add the train_data into the Xtrain matrix?
+# for row, line in enumerate(train_data):
+# 	column = 0
+# 	for col in line.strip().split():
+# 		Xtrain[int(row), column] = int(col)
+# 		column += 1
 
-for line in train_labels:
-    ytrain.append(int(line))
+# for line in train_labels:
+#     ytrain.append(int(line))
 
-print(ytrain)
+# print(ytrain)
+
+import pickle
+
+# Declarar objeto_recuperado fuera del bloque with open
+objeto_recuperado = None
+
+# Ahora, puedes cargar el objeto desde el archivo
+with open("automl.pkl", "rb") as f:
+    objeto_recuperado = pickle.load(f)
+
+print(objeto_recuperado.best_scores_)
 	
 
 
