@@ -1,5 +1,5 @@
 algorithms:
-- '''autogoal_sklearn._generated.NearestCentroid'''
+- '''autogoal_sklearn._generated.SVC'''
 inputs: "\x80\x04\x95C\x01\0\0\0\0\0\0\x8C\bbuiltins\x94\x8C\agetattr\x94\x93\x94\x8C\
   \x16autogoal.kb._semantics\x94\x8C\x06Tensor\x94\x93\x94\x8C\v_specialize\x94\x86\
   \x94R\x94K\x02h\x03\x8C\nTensorData\x94\x93\x94)\x81\x94}\x94(\x8C\vdtype_label\x94\

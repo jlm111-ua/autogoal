@@ -1,9 +1,0 @@
-module: '''autogoal_sklearn._generated.LinearSVC'''
-name: LinearSVC
-params:
-  C: 9.991
-  dual: true
-  fit_intercept: true
-  loss: squared_hinge
-  multi_class: crammer_singer
-  penalty: l2

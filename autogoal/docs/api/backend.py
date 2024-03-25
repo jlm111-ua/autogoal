@@ -12,6 +12,7 @@ from autogoal.kb import *
 import requests
 from autogoal.logging.loggerClass import WebSocketLogger
 import zipfile
+import pickle
 
 def agregar_carpeta_a_zip(archivo_zip, carpeta):
     for raiz, _, archivos in os.walk(carpeta):
@@ -28,6 +29,15 @@ def exportar_carpeta_con_descripcion(archivo_zip, directorio_raiz, valor_descrip
                 if valor_descripcion in file.read():
                     agregar_carpeta_a_zip(archivo_zip, carpeta_actual)
                     return
+
+def found_model(directorio_principal,titulo):
+    for nombre_carpeta in os.listdir(directorio_principal):
+        carpeta_actual = os.path.join(directorio_principal, nombre_carpeta)
+        descripcion = os.path.join(carpeta_actual, "description.txt")
+        if os.path.exists(descripcion):
+            with open(descripcion, "r") as file:
+                if titulo in file.read():
+                    return nombre_carpeta
 
 async def handle_connection(websocket, path):
     print(f"New connection from {websocket.remote_address}")
@@ -128,6 +138,37 @@ async def handle_connection(websocket, path):
         with open(namefile, 'w') as f: #Si se cambia la w por la a se añade al final del archivo
             # Escribe los datos en el archivo
             f.write(lines)
+    elif data == "Prediction":
+        response = f"Received Prediction message OK"
+        await websocket.send(response)
+        parameters_bytes = await websocket.recv()
+        parameters = parameters_bytes.decode('utf-8')
+        parameters_all = json.loads(parameters)
+        valores_json = parameters_all["valoresJSON"]
+        parameters_dict = json.loads(valores_json)
+
+        num_columns = len(parameters_dict)
+        num_rows = 1
+        
+        column_indices = {int(key): int(value) for key, value in parameters_dict.items()}
+        
+        Xvalid = sp.lil_matrix((num_rows, num_columns), dtype=int)
+        
+        for column, value in column_indices.items():
+            Xvalid[0, column] = value
+        
+        print(Xvalid)
+        
+        objeto_recuperado = None
+        directory_name = found_model(directorio_principal,parameters_all["titulo"])
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{directory_name}", "automl.pkl"), "rb") as f:
+            objeto_recuperado = pickle.load(f)
+
+        result = objeto_recuperado.predict(Xvalid)
+        print(result)
+        await websocket.send(str(result))
+        
+        return
 
     else:
         print(f"Data: {data}")
@@ -275,19 +316,19 @@ async def handle_connection(websocket, path):
 
         identifier_file = "Cancer_Mama_v2"
 
-        # Export the result of the search process onto a brand new image called "AutoGOAL-Cars"
-        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{idenfier}",generate_zip=True,identifier=identifier_file)
 
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{idenfier}", f'description.txt'), 'w') as f:
-            f.write(f"Nombre: {title}")
-            f.write(f"Descripción: {descripcion}")
-            f.write(f"Tipo de problema: {tipo}")
-            f.write(f"Variables predictoras: {variablesPredictoras}")
-            f.write(f"Variables objetivo: {variablesObjetivo}")
-            f.write(f"Datatype: {dataType}")
+        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=identifier_file)
+
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{identifier_file}", f'description.txt'), 'w') as f:
+            f.write(f"Nombre: {title}\n")
+            f.write(f"Descripción: {descripcion}\n")
+            f.write(f"Tipo de problema: {tipo}\n")
+            f.write(f"Variables predictoras: {variablesPredictoras}\n")
+            f.write(f"Variables objetivo: {variablesObjetivo}\n")
+            f.write(f"Datatype: {dataType}\n")
             f.write(f"Metrica: {metrica}")
         
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{idenfier}", "automl.pkl"), "wb") as f:
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{identifier_file}", "automl.pkl"), "wb") as f:
             pickle.dump(automl, f)
 
     elif dataType != "":

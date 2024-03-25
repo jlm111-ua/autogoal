@@ -1,1 +1,7 @@
-Modelo preentrenado de Cancer de Mama
+Nombre: Mi conjunto 1
+Descripción: La descripción 
+Tipo de problema: Clasificacion
+Variables predictoras: ['Clump Thickness', 'Uniformity of Cell Shape', 'Single Epithelial Cell Size', 'Normal Nucleoli']
+Variables objetivo: ['Class']
+Datatype: integer
+Metrica: asdfasd

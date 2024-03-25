@@ -1,8 +1,12 @@
-module: '''autogoal_sklearn._generated.KNeighborsTransformer'''
-name: KNeighborsTransformer
+module: '''autogoal_sklearn._generated.SVC'''
+name: SVC
 params:
-  algorithm: kd_tree
-  leaf_size: 1
-  mode: distance
-  n_neighbors: 1
-  p: 2
+  C: 9.991
+  break_ties: false
+  cache_size: 225
+  coef0: 0.5582775254214344
+  decision_function_shape: ovo
+  degree: 1
+  gamma: scale
+  probability: false
+  shrinking: true

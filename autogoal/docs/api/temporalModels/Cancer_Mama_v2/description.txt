@@ -1,1 +1,7 @@
-Modelo preentrenado de Cancer de Mama en la versión 2
+Nombre: Conunto de datos de cancer de mama
+Descripción: Prueba de la descripcion
+Tipo de problema: Clasificacion
+Variables predictoras: ['Uniformity of Cell Size', 'Single Epithelial Cell Size', 'Uniformity of Cell Shape', 'Mitoses']
+Variables objetivo: ['Class']
+Datatype: integer
+Metrica: accuracy

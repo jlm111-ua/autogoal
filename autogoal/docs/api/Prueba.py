@@ -58,15 +58,33 @@
 # print(ytrain)
 
 import pickle
+from scipy import sparse as sp
+import os
 
 # Declarar objeto_recuperado fuera del bloque with open
 objeto_recuperado = None
 
+valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.data", "r")
+num_lines_valid_data = sum(1 for line in valid_data)
+Xvalid = sp.lil_matrix((num_lines_valid_data, 4), dtype=int)
+valid_data.seek(0)
+
+print(valid_data)
+
+for row,line in enumerate(valid_data):
+            column = 0
+            for col in line.strip().split():
+                Xvalid[int(row), column] = int(col)
+                column += 1
+
 # Ahora, puedes cargar el objeto desde el archivo
-with open("automl.pkl", "rb") as f:
+with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/Cancer_Mama_v2", "automl.pkl"), "rb") as f:
     objeto_recuperado = pickle.load(f)
 
+print(Xvalid)
+
 print(objeto_recuperado.best_scores_)
+print(objeto_recuperado.predict(Xvalid))
 	
 
 

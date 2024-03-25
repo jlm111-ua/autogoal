@@ -1,3 +1,12 @@
-module: '''autogoal_sklearn._generated.NearestCentroid'''
-name: NearestCentroid
-params: {}
+module: '''autogoal_sklearn._generated.SVC'''
+name: SVC
+params:
+  C: 3.7997311584152778
+  break_ties: false
+  cache_size: 399
+  coef0: -0.8035732603121293
+  decision_function_shape: ovr
+  degree: 4
+  gamma: auto
+  probability: false
+  shrinking: false

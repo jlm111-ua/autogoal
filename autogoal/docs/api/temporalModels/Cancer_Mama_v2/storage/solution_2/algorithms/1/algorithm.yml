@@ -1,9 +1,0 @@
-module: '''autogoal_sklearn._generated.KNeighborsClassifier'''
-name: KNeighborsClassifier
-params:
-  algorithm: ball_tree
-  leaf_size: 5
-  metric: minkowski
-  n_neighbors: 7
-  p: 1
-  weights: uniform
