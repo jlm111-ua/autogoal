@@ -1,9 +1,0 @@
-module: '''autogoal_sklearn._generated.KNeighborsClassifier'''
-name: KNeighborsClassifier
-params:
-  algorithm: brute
-  leaf_size: 59
-  metric: manhattan
-  n_neighbors: 7
-  p: 3
-  weights: distance

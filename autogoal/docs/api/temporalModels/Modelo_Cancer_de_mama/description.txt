@@ -1,0 +1,7 @@
+Nombre: Modelo_Cancer_de_mama
+Descripción: Conjunto de datos para predecir si es cancer benigno o maligno
+Tipo de problema: Clasificacion
+Variables predictoras: ['Uniformity of Cell Size', 'Mitoses', 'Marginal Adhesion', 'Bland Chromatin']
+Variables objetivo: ['Class']
+Datatype: integer
+Metrica: accuracy

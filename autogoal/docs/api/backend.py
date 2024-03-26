@@ -125,14 +125,15 @@ async def handle_connection(websocket, path):
 
         # Divide los datos en líneas
         lines = data.split('\n')
+        lines = lines[:-1] #Delete the last line
 
         # Join the remaining lines into a single string
         lines = '\n'.join(lines)
         
         # Abre el archivo en modo de escritura. Si el archivo no existe, se creará.
         with open(namefile, 'w') as f: #Si se cambia la w por la a se añade al final del archivo
+            # Escribe los datos en el archivo
             f.write(lines)
-
     elif data == "Prediction":
         response = f"Received Prediction message OK"
         await websocket.send(response)
@@ -231,21 +232,15 @@ async def handle_connection(websocket, path):
 
         train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
         train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
-        valid_data = open("/home/coder/autogoal/autogoal/docs/api/test_data.data", "r")
-        valid_labels = open("/home/coder/autogoal/autogoal/docs/api/test_labels.data", "r")
 
         # Count the number of lines in each file
         num_lines_train_data = sum(1 for line in train_data)
-        num_lines_valid_data = sum(1 for line in valid_data)
 
         Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=int)
         ytrain = []
-        Xvalid = sp.lil_matrix((num_lines_valid_data, tam), dtype=int)
-        yvalid = []
 
         # Reset the file pointer to the beginning of the file
         train_data.seek(0)
-        valid_data.seek(0)
 
         for row, line in enumerate(train_data):
             column = 0
@@ -253,22 +248,11 @@ async def handle_connection(websocket, path):
                 Xtrain[int(row), column] = int(col)
                 column += 1
         
-        for row,line in enumerate(valid_data):
-            column = 0
-            for col in line.strip().split():
-                Xvalid[int(row), column] = int(col)
-                column += 1
-
         for line in train_labels:
             ytrain.append(int(line))
 
-        for line in valid_labels:
-            yvalid.append(int(line))
-
         # print(Xtrain)
         # print(Xvalid)
-        # print(ytrain)
-        # print(yvalid)
 
         #Create the AutoML object
         # automl = AutoML(
