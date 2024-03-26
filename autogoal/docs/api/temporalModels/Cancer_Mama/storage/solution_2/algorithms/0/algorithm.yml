@@ -1,6 +1,0 @@
-module: '''autogoal_sklearn._generated.NMF'''
-name: NMF
-params:
-  alpha_W: 0.0
-  l1_ratio: 0.0
-  shuffle: true

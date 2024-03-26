@@ -47,7 +47,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     break
                 await other_websocket.send(data)
                 response = await other_websocket.recv()
-                print(f"Response: {response}")
+                # print(f"Response: {response}")
                 await websocket.send_text(response)
                 if response == "Ending connection" or response == "Starting training":
                     if response == "Starting training":

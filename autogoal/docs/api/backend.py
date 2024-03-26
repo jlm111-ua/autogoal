@@ -44,7 +44,6 @@ async def handle_connection(websocket, path):
     print("Waiting for messages...")
     data_bytes = await websocket.recv()
     data = data_bytes.decode('utf-8')
-    print(f"Received message")
     dataType = ""
     tam = 0
     directorio_principal= '/home/coder/autogoal/autogoal/docs/api/temporalModels'
@@ -126,18 +125,14 @@ async def handle_connection(websocket, path):
 
         # Divide los datos en líneas
         lines = data.split('\n')
-        # Check if the namefile contains "test"
-        if "test" in namefile:
-            # If it does, remove the last line
-            lines = lines[:-1]
 
         # Join the remaining lines into a single string
         lines = '\n'.join(lines)
         
         # Abre el archivo en modo de escritura. Si el archivo no existe, se creará.
         with open(namefile, 'w') as f: #Si se cambia la w por la a se añade al final del archivo
-            # Escribe los datos en el archivo
             f.write(lines)
+
     elif data == "Prediction":
         response = f"Received Prediction message OK"
         await websocket.send(response)
@@ -157,7 +152,8 @@ async def handle_connection(websocket, path):
         for column, value in column_indices.items():
             Xvalid[0, column] = value
         
-        print(Xvalid)
+        # print(Xvalid)
+        # print(f"Parameters: {parameters_all}")
         
         objeto_recuperado = None
         directory_name = found_model(directorio_principal,parameters_all["titulo"])
@@ -176,10 +172,9 @@ async def handle_connection(websocket, path):
         await websocket.send(response)
         print(f"Sent response: {response}")
         data_bytes = await websocket.recv()
-        print(data_bytes)
         
         data = data_bytes.decode('utf-8')
-        print(f"Data: {data}")
+        # print(f"Data: {data}")
 
         # Convert the JSON string to a Python dictionary
         data_dict = json.loads(data)
@@ -220,7 +215,7 @@ async def handle_connection(websocket, path):
         # print(f"Data Type: {dataType}")
 
         tam = len(variablesPredictoras)
-        print(f"Tam: {tam}")
+        # print(f"Tam: {tam}")
     
     response = f"Ending connection"
     if dataType != "":
@@ -314,12 +309,9 @@ async def handle_connection(websocket, path):
         print(automl.best_pipelines_)
         print(automl.best_scores_)
 
-        identifier_file = "Cancer_Mama_v2"
+        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=title)
 
-
-        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=identifier_file)
-
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{identifier_file}", f'description.txt'), 'w') as f:
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", f'description.txt'), 'w') as f:
             f.write(f"Nombre: {title}\n")
             f.write(f"Descripción: {descripcion}\n")
             f.write(f"Tipo de problema: {tipo}\n")
@@ -328,7 +320,7 @@ async def handle_connection(websocket, path):
             f.write(f"Datatype: {dataType}\n")
             f.write(f"Metrica: {metrica}")
         
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{identifier_file}", "automl.pkl"), "wb") as f:
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", "automl.pkl"), "wb") as f:
             pickle.dump(automl, f)
 
     elif dataType != "":
