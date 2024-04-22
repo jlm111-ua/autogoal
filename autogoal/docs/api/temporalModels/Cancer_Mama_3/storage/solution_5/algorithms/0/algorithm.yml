@@ -1,0 +1,12 @@
+module: '''autogoal_sklearn._generated.SVC'''
+name: SVC
+params:
+  C: 7.150309521187269
+  break_ties: false
+  cache_size: 1
+  coef0: 0.45633484231031013
+  decision_function_shape: ovr
+  degree: 2
+  gamma: scale
+  probability: false
+  shrinking: false

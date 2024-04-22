@@ -1,0 +1,7 @@
+Nombre: Cancer_Mama_2
+Descripción: Descripcion de los datos
+Tipo de problema: Clasificacion
+Variables predictoras: ['Uniformity of Cell Size', 'Single Epithelial Cell Size', 'Bland Chromatin', 'Uniformity of Cell Shape']
+Variables objetivo: ['Class']
+Datatype: integer
+Metrica: accuracy

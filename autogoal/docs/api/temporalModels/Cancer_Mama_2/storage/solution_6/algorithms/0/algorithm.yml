@@ -1,0 +1,12 @@
+module: '''autogoal_sklearn._generated.NuSVC'''
+name: NuSVC
+params:
+  break_ties: true
+  cache_size: 196
+  coef0: 0.9470611149579533
+  decision_function_shape: ovr
+  degree: 4
+  gamma: scale
+  kernel: sigmoid
+  probability: true
+  shrinking: true

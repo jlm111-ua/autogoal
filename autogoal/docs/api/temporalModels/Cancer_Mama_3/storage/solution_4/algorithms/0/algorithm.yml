@@ -1,0 +1,9 @@
+module: '''autogoal_sklearn._generated.KNeighborsClassifier'''
+name: KNeighborsClassifier
+params:
+  algorithm: brute
+  leaf_size: 21
+  metric: l2
+  n_neighbors: 6
+  p: 1
+  weights: uniform

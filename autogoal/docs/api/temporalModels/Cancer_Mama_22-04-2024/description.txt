@@ -1,0 +1,7 @@
+Nombre: Cancer_Mama_22-04-2024
+Descripción: La descripción del conjunto susodicho
+Tipo de problema: Clasificacion
+Variables predictoras: ['Clump Thickness', 'Uniformity of Cell Size', 'Marginal Adhesion', 'Uniformity of Cell Shape', 'Bland Chromatin']
+Variables objetivo: ['Class']
+Datatype: integer
+Metrica: accuracy

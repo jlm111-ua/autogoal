@@ -48,15 +48,13 @@ async def handle_connection(websocket, path):
     tam = 0
     directorio_principal= '/home/coder/autogoal/autogoal/docs/api/temporalModels'
 
-    if data == "get":
+    if data == "get": # Envía el archivo zip del modelo recién entrenado
         # Read the zip file in binary mode
         with open('production_assets.zip', 'rb') as f:
-            # Encode the binary data to base64 string
             base64_encoded = base64.b64encode(f.read()).decode('utf-8')
-            # Send the base64 string over websocket
             await websocket.send(base64_encoded)
 
-    elif data == "getTrainModels":
+    elif data == "getTrainModels": # Envía la lista de modelos entrenados
         respuesta = []
         for nombre_carpeta in os.listdir(directorio_principal):
             ruta_carpeta = os.path.join(directorio_principal, nombre_carpeta)
@@ -71,24 +69,20 @@ async def handle_connection(websocket, path):
                 # Leer el contenido del archivo .txt
                 with open(ruta_archivo_txt, 'r') as archivo:
                     lineas = archivo.readlines()
-                    # Convertir cada línea en una lista de Python, si es necesario
                     lineas = [json.loads(linea) if isinstance(linea, str) and linea.startswith('[') and linea.endswith(']') else linea for linea in lineas]
-                    # Agregar las líneas como una sublista a la lista respuesta
                     respuesta.append(lineas)
                     
             else:
                 print(f'No se encontró archivo description.txt en la carpeta {nombre_carpeta}')
                 respuesta.append(f'No se encontró archivo description.txt en la carpeta {nombre_carpeta}')
 
-        # Convertir la lista respuesta a formato JSON
         respuesta_json = json.dumps(respuesta)
         await websocket.send(respuesta_json)
         await websocket.close()
         print("Connection closed")
-
         return 
     
-    elif data == "getOldModel":
+    elif data == "getOldModel": # Envía el archivo zip del modelo seleccionado de la lista de modelos almacenados
         response = f"Received Getting old model OK"
         await websocket.send(response)
         print(f"Sent response: {response}")
@@ -102,19 +96,17 @@ async def handle_connection(websocket, path):
 
         # Read the zip file in binary mode
         with open('Old_solution.zip', 'rb') as f:
-            # Encode the binary data to base64 string
             base64_encoded = base64.b64encode(f.read()).decode('utf-8')
-            # Send the base64 string over websocket
             await websocket.send(base64_encoded)
 
-    elif data == "Data":
+    elif data == "Data": # Recibe los datos de entrenamiento
         response = f"Received Data message OK"
         await websocket.send(response)
         print(f"Sent response: {response}")
 
         namefile_bytes = await websocket.recv()
         namefile = namefile_bytes.decode('utf-8')
-        namefile += '.data' # Añade la extensión .txt al nombre del archivo
+        namefile += '.data'
         response = f"Received Namefile message OK"
         await websocket.send(response)
         print(f"Sent response: {response}")
@@ -130,11 +122,10 @@ async def handle_connection(websocket, path):
         # Join the remaining lines into a single string
         lines = '\n'.join(lines)
         
-        # Abre el archivo en modo de escritura. Si el archivo no existe, se creará.
         with open(namefile, 'w') as f: #Si se cambia la w por la a se añade al final del archivo
-            # Escribe los datos en el archivo
             f.write(lines)
-    elif data == "Prediction":
+            
+    elif data == "Prediction": # Realiza la predicción del modelo seleccionado
         response = f"Received Prediction message OK"
         await websocket.send(response)
         parameters_bytes = await websocket.recv()
@@ -167,7 +158,7 @@ async def handle_connection(websocket, path):
         
         return
 
-    else:
+    else: #Recibe los parámetros del entrenamiento y entrena el modelo
         print(f"Data: {data}")
         response = f"Receive Json message OK"
         await websocket.send(response)
@@ -177,7 +168,6 @@ async def handle_connection(websocket, path):
         data = data_bytes.decode('utf-8')
         # print(f"Data: {data}")
 
-        # Convert the JSON string to a Python dictionary
         data_dict = json.loads(data)
 
         with open('Data.json', 'w') as f:
@@ -199,7 +189,6 @@ async def handle_connection(websocket, path):
         if isinstance(seleccionadas, str):
             seleccionadas = json.loads(seleccionadas)
 
-        # Access the 'variablesPredictoras' and 'variablesObjetivo' lists
         variablesPredictoras = seleccionadas['variablesPredictoras']
         variablesObjetivo = seleccionadas['variablesObjetivo']
 
@@ -225,7 +214,7 @@ async def handle_connection(websocket, path):
     print(f"Sent response: {response}")
     print(f"tam: {tam}")
     
-    if dataType == "integer":   
+    if dataType == "integer": # Entrena el modelo para datos enteros
         ip_data = await websocket.recv()
         await websocket.close()
         print(f"IP data: {ip_data}")
@@ -233,7 +222,6 @@ async def handle_connection(websocket, path):
         train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
         train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
 
-        # Count the number of lines in each file
         num_lines_train_data = sum(1 for line in train_data)
 
         Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=int)
@@ -279,8 +267,11 @@ async def handle_connection(websocket, path):
         automl = AutoML(
             input=(MatrixContinuous, Supervised[VectorCategorical]),
             output=VectorCategorical,
-            search_timeout=25 * Sec,
+            search_timeout=int(max_time) * Sec,
+            search_iterations=int(limite),
             evaluation_timeout=8 * Sec,
+            cross_validation_steps=int(crossval),
+            validation_split=float(inputVal),
         )
 
         uri = f"http://172.17.0.2:4239"
