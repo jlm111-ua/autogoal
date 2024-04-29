@@ -1,7 +1,0 @@
-Nombre: Cancer_Mama_3
-Descripción: Descripcion de los datos
-Tipo de problema: Clasificacion
-Variables predictoras: ['Uniformity of Cell Size', 'Marginal Adhesion', 'Single Epithelial Cell Size', 'Bare Nuclei']
-Variables objetivo: ['Class']
-Datatype: integer
-Metrica: accuracy

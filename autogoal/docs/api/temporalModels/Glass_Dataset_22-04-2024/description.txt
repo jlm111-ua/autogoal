@@ -1,0 +1,7 @@
+Nombre: Glass_Dataset_22-04-2024
+Descripción: La descripción del conjunto susodicho
+Tipo de problema: Clasificacion
+Variables predictoras: ['Refractive Index', 'Magnesium', 'Silicon']
+Variables objetivo: ['Type of Glass']
+Datatype: real
+Metrica: accuracy

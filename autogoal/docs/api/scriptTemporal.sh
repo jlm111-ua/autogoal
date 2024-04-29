@@ -4,7 +4,7 @@
 DIRECTORY="/home/coder/autogoal/autogoal/docs/api/temporalModels"
 
 # Definir el límite de carpetas
-LIMIT=3
+LIMIT=6
 
 # Contar la cantidad de carpetas en el directorio
 count=$(ls -1 "$DIRECTORY" | wc -l)

@@ -1,0 +1,7 @@
+Nombre: Raisin_Dataset_22-04-2024
+Descripción: La descripción del conjunto susodicho
+Tipo de problema: Clasificacion
+Variables predictoras: ['Area', 'MinorAxisLength', 'ConvexArea', 'MajorAxisLength']
+Variables objetivo: ['Class']
+Datatype: real
+Metrica: accuracy

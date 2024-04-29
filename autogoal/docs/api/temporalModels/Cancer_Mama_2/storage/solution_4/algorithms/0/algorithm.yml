@@ -1,7 +1,0 @@
-module: '''autogoal_sklearn._generated.TfidfTransformer'''
-name: TfidfTransformer
-params:
-  norm: l1
-  smooth_idf: true
-  sublinear_tf: true
-  use_idf: false

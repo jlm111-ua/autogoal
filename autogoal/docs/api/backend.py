@@ -136,8 +136,19 @@ async def handle_connection(websocket, path):
 
         num_columns = len(parameters_dict)
         num_rows = 1
-        
-        column_indices = {int(key): int(value) for key, value in parameters_dict.items()}
+
+        directory_name = found_model(directorio_principal,parameters_all["titulo"])
+        description = open(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{directory_name}/description.txt", "r")
+        for line in description:
+            if "Datatype" in line:
+                dataType = line.split(": ")[1].strip()
+                break
+
+        column_indices = {}
+        if dataType == "integer":
+            column_indices = {int(key): int(value) for key, value in parameters_dict.items()}
+        elif dataType == "real":
+            column_indices = {int(key): float(value) for key, value in parameters_dict.items()}
         
         Xvalid = sp.lil_matrix((num_rows, num_columns), dtype=int)
         
@@ -148,7 +159,6 @@ async def handle_connection(websocket, path):
         # print(f"Parameters: {parameters_all}")
         
         objeto_recuperado = None
-        directory_name = found_model(directorio_principal,parameters_all["titulo"])
         with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{directory_name}", "automl.pkl"), "rb") as f:
             objeto_recuperado = pickle.load(f)
 
@@ -237,7 +247,10 @@ async def handle_connection(websocket, path):
                 column += 1
         
         for line in train_labels:
-            ytrain.append(int(line))
+            try:
+                ytrain.append(int(line))
+            except ValueError:
+                ytrain.append(line.strip())
 
         # print(Xtrain)
         # print(Xvalid)
@@ -265,13 +278,14 @@ async def handle_connection(websocket, path):
 
         # Instantiate AutoML and define input/output types
         automl = AutoML(
-            input=(MatrixContinuous, Supervised[VectorCategorical]),
+            input=(MatrixContinuous, Supervised[VectorCategorical]), #MatrixContinuousSparse también buena opción
             output=VectorCategorical,
             search_timeout=int(max_time) * Sec,
             search_iterations=int(limite),
             evaluation_timeout=8 * Sec,
             cross_validation_steps=int(crossval),
             validation_split=float(inputVal),
+            # objectives=metrica,
         )
 
         uri = f"http://172.17.0.2:4239"
@@ -297,6 +311,72 @@ async def handle_connection(websocket, path):
         
         with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", "automl.pkl"), "wb") as f:
             pickle.dump(automl, f)
+
+    elif dataType == "real": # Entrena el modelo para datos flotantes
+        ip_data = await websocket.recv()
+        await websocket.close()
+        print(f"IP data: {ip_data}")
+
+        train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
+        train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
+
+        num_lines_train_data = sum(1 for line in train_data)
+
+        Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=float)
+        ytrain = []
+
+        # Reset the file pointer to the beginning of the file
+        train_data.seek(0)
+
+        for row, line in enumerate(train_data):
+            column = 0
+            for col in line.strip().split():
+                Xtrain[int(row), column] = float(col)
+                column += 1
+        
+        for line in train_labels:
+            ytrain.append(line)
+
+        print(Xtrain)
+        print(ytrain)
+
+        # Instantiate AutoML and define input/output types
+        automl = AutoML(
+            input=(MatrixContinuousSparse, Supervised[VectorCategorical]), #MatrixContinuousSparse
+            output=VectorCategorical,
+            search_timeout=int(max_time) * Sec,
+            search_iterations=int(limite),
+            evaluation_timeout=8 * Sec,
+            cross_validation_steps=int(crossval),
+            validation_split=float(inputVal),
+            # objectives=metrica,
+        )
+
+        uri = f"http://172.17.0.2:4239"
+        mylogger = WebSocketLogger(uri,ip_data)
+
+        # # Run the pipeline search process
+        automl.fit(Xtrain, ytrain, logger=mylogger)
+
+        # Report the best pipelines
+        print(automl.best_pipelines_)
+        print(automl.best_scores_)
+
+        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=title)
+
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", f'description.txt'), 'w') as f:
+            f.write(f"Nombre: {title}\n")
+            f.write(f"Descripción: {descripcion}\n")
+            f.write(f"Tipo de problema: {tipo}\n")
+            f.write(f"Variables predictoras: {variablesPredictoras}\n")
+            f.write(f"Variables objetivo: {variablesObjetivo}\n")
+            f.write(f"Datatype: {dataType}\n")
+            f.write(f"Metrica: {metrica}")
+        
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", "automl.pkl"), "wb") as f:
+            pickle.dump(automl, f)
+
+
 
     elif dataType != "":
         print("Data type is not integer")
