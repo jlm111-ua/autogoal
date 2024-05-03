@@ -1,0 +1,7 @@
+Nombre: Cancer_Mama_03-05-2024
+Descripción: Conjunto de datos para adivinar la letra a partir de variables
+Tipo de problema: Agrupamientos
+Variables predictoras: ['Uniformidad del tamaño celular', 'Uniformidad de la forma celular', 'Núcleos desnudos', 'Mitosis']
+Variables objetivo: ['Clase']
+Datatype: integer
+Metrica: calinski harabasz

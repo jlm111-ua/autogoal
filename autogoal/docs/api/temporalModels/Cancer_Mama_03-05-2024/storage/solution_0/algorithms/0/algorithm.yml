@@ -1,0 +1,17 @@
+module: '''autogoal_sklearn._generated.SGDClassifier'''
+name: SGDClassifier
+params:
+  average: false
+  early_stopping: false
+  epsilon: 0.993
+  eta0: -0.992
+  fit_intercept: true
+  l1_ratio: 0.001
+  learning_rate: optimal
+  loss: perceptron
+  n_iter_no_change: 9
+  penalty: elasticnet
+  power_t: 4.991
+  shuffle: true
+  tol: 0.001
+  validation_fraction: 0.7943837702816836

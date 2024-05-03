@@ -13,6 +13,13 @@ import requests
 from autogoal.logging.loggerClass import WebSocketLogger
 import zipfile
 import pickle
+from autogoal.ml.metrics import (
+    accuracy,
+    supervised_fitness_fn_moo,
+    unsupervised_fitness_fn_moo,
+    calinski_harabasz_score,
+    silhouette_score,
+)
 
 def agregar_carpeta_a_zip(archivo_zip, carpeta):
     for raiz, _, archivos in os.walk(carpeta):
@@ -224,7 +231,7 @@ async def handle_connection(websocket, path):
     print(f"Sent response: {response}")
     print(f"tam: {tam}")
     
-    if dataType == "integer": # Entrena el modelo para datos enteros
+    if dataType == "integer" or dataType == "real": # Entrena el modelo para datos enteros
         ip_data = await websocket.recv()
         await websocket.close()
         print(f"IP data: {ip_data}")
@@ -234,47 +241,48 @@ async def handle_connection(websocket, path):
 
         num_lines_train_data = sum(1 for line in train_data)
 
-        Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=int)
-        ytrain = []
+        if dataType == "integer":
+            Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=int)
+            ytrain = []
 
-        # Reset the file pointer to the beginning of the file
-        train_data.seek(0)
+            # Reset the file pointer to the beginning of the file
+            train_data.seek(0)
 
-        for row, line in enumerate(train_data):
-            column = 0
-            for col in line.strip().split():
-                Xtrain[int(row), column] = int(col)
-                column += 1
-        
-        for line in train_labels:
-            try:
-                ytrain.append(int(line))
-            except ValueError:
-                ytrain.append(line.strip())
+            for row, line in enumerate(train_data):
+                column = 0
+                for col in line.strip().split():
+                    Xtrain[int(row), column] = int(col)
+                    column += 1
+            
+            for line in train_labels:
+                try:
+                    ytrain.append(int(line))
+                except ValueError:
+                    ytrain.append(line.strip())
 
-        # print(Xtrain)
-        # print(Xvalid)
+        elif dataType == "real":
+            Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=float)
+            ytrain = []
 
-        #Create the AutoML object
-        # automl = AutoML(
-        #     input=MatrixContinuousSparse,
-        #     output=VectorDiscrete,
-        #     # search_algorithm=metrica,
-        #     # search_iterations=limite,
-        #     # cross_validation_steps=crossval,
-        #     #     # crossval->cross_validation de 0 a 30
-        #     #     # %val NO -> tam_validacion(validation_split) de 0 a 5
-        #     #     # limite lim_iterations de 0 a 10000
-        #     #     # timeout
-        #     #     # pipelime timeout
-        #     objectives=calinski_harabasz_score,
-        #     # Search space configuration
-        #     search_timeout=60 * Sec,
-        #     evaluation_timeout=8 * Sec,
-        #     memory_limit=2 * Gb,
-        #     validation_split=0.3,
-        #     cross_validation_steps=2
-        #)
+            # Reset the file pointer to the beginning of the file
+            train_data.seek(0)
+
+            for row, line in enumerate(train_data):
+                column = 0
+                for col in line.strip().split():
+                    Xtrain[int(row), column] = float(col)
+                    column += 1
+            
+            for line in train_labels:
+                ytrain.append(line)
+
+        valor=None
+        if metrica == "accuracy":
+            valor = accuracy
+        elif metrica == "calinski_harabasz_score":
+            valor = calinski_harabasz_score
+        elif metrica == "silhouette_score":
+            valor = silhouette_score
 
         # Instantiate AutoML and define input/output types
         automl = AutoML(
@@ -285,7 +293,7 @@ async def handle_connection(websocket, path):
             evaluation_timeout=8 * Sec,
             cross_validation_steps=int(crossval),
             validation_split=float(inputVal),
-            # objectives=metrica,
+            objectives=valor
         )
 
         uri = f"http://172.17.0.2:4239"
@@ -295,8 +303,8 @@ async def handle_connection(websocket, path):
         automl.fit(Xtrain, ytrain, logger=mylogger)
 
         # Report the best pipelines
-        print(automl.best_pipelines_)
-        print(automl.best_scores_)
+        # print(automl.best_pipelines_)
+        # print(automl.best_scores_)
 
         automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=title)
 
@@ -311,75 +319,9 @@ async def handle_connection(websocket, path):
         
         with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", "automl.pkl"), "wb") as f:
             pickle.dump(automl, f)
-
-    elif dataType == "real": # Entrena el modelo para datos flotantes
-        ip_data = await websocket.recv()
-        await websocket.close()
-        print(f"IP data: {ip_data}")
-
-        train_data = open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r")
-        train_labels = open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r")
-
-        num_lines_train_data = sum(1 for line in train_data)
-
-        Xtrain = sp.lil_matrix((num_lines_train_data, tam), dtype=float)
-        ytrain = []
-
-        # Reset the file pointer to the beginning of the file
-        train_data.seek(0)
-
-        for row, line in enumerate(train_data):
-            column = 0
-            for col in line.strip().split():
-                Xtrain[int(row), column] = float(col)
-                column += 1
-        
-        for line in train_labels:
-            ytrain.append(line)
-
-        print(Xtrain)
-        print(ytrain)
-
-        # Instantiate AutoML and define input/output types
-        automl = AutoML(
-            input=(MatrixContinuousSparse, Supervised[VectorCategorical]), #MatrixContinuousSparse
-            output=VectorCategorical,
-            search_timeout=int(max_time) * Sec,
-            search_iterations=int(limite),
-            evaluation_timeout=8 * Sec,
-            cross_validation_steps=int(crossval),
-            validation_split=float(inputVal),
-            # objectives=metrica,
-        )
-
-        uri = f"http://172.17.0.2:4239"
-        mylogger = WebSocketLogger(uri,ip_data)
-
-        # # Run the pipeline search process
-        automl.fit(Xtrain, ytrain, logger=mylogger)
-
-        # Report the best pipelines
-        print(automl.best_pipelines_)
-        print(automl.best_scores_)
-
-        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=title)
-
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", f'description.txt'), 'w') as f:
-            f.write(f"Nombre: {title}\n")
-            f.write(f"Descripción: {descripcion}\n")
-            f.write(f"Tipo de problema: {tipo}\n")
-            f.write(f"Variables predictoras: {variablesPredictoras}\n")
-            f.write(f"Variables objetivo: {variablesObjetivo}\n")
-            f.write(f"Datatype: {dataType}\n")
-            f.write(f"Metrica: {metrica}")
-        
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", "automl.pkl"), "wb") as f:
-            pickle.dump(automl, f)
-
-
 
     elif dataType != "":
-        print("Data type is not integer")
+        print("Data type is not accepted")
 
     await websocket.close()
     print("Connection closed")
@@ -391,36 +333,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-# Store the data in a json file
-    """
-    with open('Data.json', 'w') as f:
-        json.dump(data_dict, f)
-    """  
-
-# # # Load dataset
-#     varX = []
-#     varY = []
-#     tam = len(variablesPredictoras)
-
-#     with open('datos.txt', 'r') as f:
-#         for i in f.readlines():
-#             clean_line = i.strip().split(",")
-
-#             temp = {}
-#             for j in range(tam):
-#                 temp[variablesPredictoras[j]] = clean_line[j]
-            
-#             varX.append(temp)
-#             varY.append(clean_line[-1])
-
-#     y = np.asarray(varY)
-
- # # Abre el archivo original en modo de lectura y un nuevo archivo en modo de escritura
-        # with open('datos.txt', 'r') as f, open('new_data.txt', 'w') as g:
-        #     # Lee cada línea del archivo original
-        #     for line in f:
-        #         # Reemplaza las comas por espacios
-        #         modified_line = line.replace(',', ' ')
-        #         # Escribe la línea modificada en el nuevo archivo
-        #         g.write(modified_line)
+ 
