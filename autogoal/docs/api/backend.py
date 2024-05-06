@@ -6,7 +6,8 @@ import json
 import base64
 import numpy as np
 from scipy import sparse as sp
-from autogoal.ml import AutoML, calinski_harabasz_score
+#from autogoal.ml import AutoML
+from autogoal.ml._automlApi import AutoMLApi as AutoML
 from autogoal.utils import Min, Gb, Hour, Sec
 from autogoal.kb import *
 import requests
@@ -20,6 +21,12 @@ from autogoal.ml.metrics import (
     calinski_harabasz_score,
     silhouette_score,
 )
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc, f1_score
+from sklearn.preprocessing import LabelEncoder
+#from autogoal.search import (Logger, PESearch, ConsoleLogger, ProgressLogger, MemoryLogger)
+from autogoal.kb import Seq, Sentence, VectorCategorical, Supervised
+from autogoal_contrib import find_classes
+from autogoal.search import (Logger, PESearch, ConsoleLogger, ProgressLogger, MemoryLogger)
 
 def agregar_carpeta_a_zip(archivo_zip, carpeta):
     for raiz, _, archivos in os.walk(carpeta):
@@ -118,6 +125,29 @@ async def handle_connection(websocket, path):
         await websocket.send(response)
         print(f"Sent response: {response}")
 
+        id_text = await websocket.recv()
+        id = id_text.decode('utf-8')
+
+        if namefile == "train_data.data":
+            with open('id_fileData.txt', 'r') as f:
+                stored_id = f.read().strip()
+        else:
+            with open('id_fileLabel.txt', 'r') as f:
+                stored_id = f.read().strip()
+
+        # Si los IDs no coinciden, sobreescribir el ID en el archivo
+        if id != stored_id:
+            if namefile == "train_data.data":
+                with open('id_fileData.txt', 'w') as f:
+                    f.write(id)
+            else:
+                with open('id_fileLabel.txt', 'w') as f:
+                    f.write(id)
+
+        response = f"Received Id OK"
+        await websocket.send(response)
+        print(f"Sent response: {response}")
+
         # Read the data from the websocket
         data_bytes = await websocket.recv()
         data = data_bytes.decode('utf-8')
@@ -128,10 +158,16 @@ async def handle_connection(websocket, path):
 
         # Join the remaining lines into a single string
         lines = '\n'.join(lines)
-        
-        with open(namefile, 'w') as f: #Si se cambia la w por la a se añade al final del archivo
-            f.write(lines)
-            
+
+        # Si los IDs coinciden, añadir al final del archivo. Si no, sobreescribir el archivo.
+        mode = 'a' if id == stored_id else 'w'
+        with open(namefile, mode) as f:
+            if mode == 'a':
+                f.write("\n" + lines)
+            else:
+                f.write(lines)   
+
+           
     elif data == "Prediction": # Realiza la predicción del modelo seleccionado
         response = f"Received Prediction message OK"
         await websocket.send(response)
@@ -156,6 +192,8 @@ async def handle_connection(websocket, path):
             column_indices = {int(key): int(value) for key, value in parameters_dict.items()}
         elif dataType == "real":
             column_indices = {int(key): float(value) for key, value in parameters_dict.items()}
+        elif dataType == "string":
+            column_indices = {int(key): str(value) for key, value in parameters_dict.items()}
         
         Xvalid = sp.lil_matrix((num_rows, num_columns), dtype=int)
         
@@ -191,37 +229,26 @@ async def handle_connection(websocket, path):
             json.dump(data_dict, f)
 
         # Now you can access the elements in the dictionary
-        metrica = data_dict['metrica']
-        inputVal = data_dict['inputVal']
-        crossval = data_dict['crossval']
-        limite = data_dict['limite']
         seleccionadas = json.loads(data_dict['seleccionadas'])
-        tipo = data_dict['problemaSeleccionado']
-        max_time = data_dict['maxTime']
         dataType = data_dict['dataType']
-        title = data_dict['title']
-        descripcion = data_dict['description']
 
         # Check if 'seleccionadas' is a string
         if isinstance(seleccionadas, str):
             seleccionadas = json.loads(seleccionadas)
 
-        variablesPredictoras = seleccionadas['variablesPredictoras']
-        variablesObjetivo = seleccionadas['variablesObjetivo']
-
         # # Print some data to check
-        # print(f"Metrica: {metrica}")
-        # print(f"Input Value: {inputVal}")
-        # print(f"Crossval: {crossval}")
-        # print(f"Limite: {limite}")
+        # print(f"Metrica: {data_dict['metrica']}")
+        # print(f"Input Value: {data_dict['inputVal']}")
+        # print(f"Crossval: {data_dict['crossval']}")
+        # print(f"Limite: {data_dict['limite']}")
         # print(f"Seleccionadas: {seleccionadas}")   
-        # print(f"Variables Predictoras: {variablesPredictoras}")
-        # print(f"Variables Objetivo: {variablesObjetivo}") 
-        # print(f"Tipo: {tipo}")
-        # print(f"Max Time: {max_time}")
+        # print(f"Variables Predictoras: {seleccionadas['variablesPredictoras']}")
+        # print(f"Variables Objetivo: {seleccionadas['variablesObjetivo']}") 
+        # print(f"Tipo: {data_dict['problemaSeleccionado']}")
+        # print(f"Max Time: {data_dict['maxTime']}")
         # print(f"Data Type: {dataType}")
 
-        tam = len(variablesPredictoras)
+        tam = len(seleccionadas['variablesPredictoras'])
         # print(f"Tam: {tam}")
     
     response = f"Ending connection"
@@ -231,7 +258,7 @@ async def handle_connection(websocket, path):
     print(f"Sent response: {response}")
     print(f"tam: {tam}")
     
-    if dataType == "integer" or dataType == "real": # Entrena el modelo para datos enteros
+    if dataType == "integer" or dataType == "real":
         ip_data = await websocket.recv()
         await websocket.close()
         print(f"IP data: {ip_data}")
@@ -277,22 +304,24 @@ async def handle_connection(websocket, path):
                 ytrain.append(line)
 
         valor=None
-        if metrica == "accuracy":
-            valor = accuracy
-        elif metrica == "calinski_harabasz_score":
-            valor = calinski_harabasz_score
-        elif metrica == "silhouette_score":
-            valor = silhouette_score
+        metrics = {
+            "accuracy": accuracy,
+            "calinski_harabasz_score": calinski_harabasz_score,
+            "silhouette_score": silhouette_score
+        }
+
+        # Ahora puedes obtener la función de métrica directamente del diccionario
+        valor = metrics[data_dict['metrica']]
 
         # Instantiate AutoML and define input/output types
         automl = AutoML(
             input=(MatrixContinuous, Supervised[VectorCategorical]), #MatrixContinuousSparse también buena opción
             output=VectorCategorical,
-            search_timeout=int(max_time) * Sec,
-            search_iterations=int(limite),
+            search_timeout=int(data_dict['maxTime']) * Sec,
+            search_iterations=int(data_dict['limite']),
             evaluation_timeout=8 * Sec,
-            cross_validation_steps=int(crossval),
-            validation_split=float(inputVal),
+            cross_validation_steps=int(data_dict['crossval']),
+            validation_split=float(data_dict['inputVal']),
             objectives=valor
         )
 
@@ -306,19 +335,106 @@ async def handle_connection(websocket, path):
         # print(automl.best_pipelines_)
         # print(automl.best_scores_)
 
-        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=title)
+        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=data_dict['title'])
 
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", f'description.txt'), 'w') as f:
-            f.write(f"Nombre: {title}\n")
-            f.write(f"Descripción: {descripcion}\n")
-            f.write(f"Tipo de problema: {tipo}\n")
-            f.write(f"Variables predictoras: {variablesPredictoras}\n")
-            f.write(f"Variables objetivo: {variablesObjetivo}\n")
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{data_dict['title']}", f'description.txt'), 'w') as f:
+            f.write(f"Nombre: {data_dict['title']}\n")
+            f.write(f"Descripción: {data_dict['description']}\n")
+            f.write(f"Tipo de problema: {data_dict['problemaSeleccionado']}\n")
+            f.write(f"Variables predictoras: {seleccionadas['variablesPredictoras']}\n")
+            f.write(f"Variables objetivo: {seleccionadas['variablesObjetivo']}\n")
             f.write(f"Datatype: {dataType}\n")
-            f.write(f"Metrica: {metrica}")
+            f.write(f"Metrica: {data_dict['metrica']}")
         
-        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{title}", "automl.pkl"), "wb") as f:
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{data_dict['title']}", "automl.pkl"), "wb") as f:
             pickle.dump(automl, f)
+
+    elif dataType == "string":
+        ip_data = await websocket.recv()
+        await websocket.close()
+        print(f"IP data: {ip_data}")
+
+        with open("/home/coder/autogoal/autogoal/docs/api/train_data.data", "r") as file:
+            train_data = file.read().splitlines()
+
+        with open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r") as file:
+            train_labels = file.read().splitlines()
+
+        # Instanciar LabelEncoder
+        label_encoder = LabelEncoder()
+
+        # entrenar LabelEncoder
+        label_encoder.fit(train_labels)
+
+        # guardar LabelEncoder entrenado para su posterior uso (codificar nuevos datos).
+        with open('label_encoder_reviews.pkl', 'wb') as f:
+            pickle.dump(label_encoder, f)
+
+        # codificar labels
+        train_labels = label_encoder.transform(train_labels)
+
+        valor=None
+        metrics = {
+            "accuracy": accuracy,
+            "calinski_harabasz_score": calinski_harabasz_score,
+            "silhouette_score": silhouette_score
+        }
+
+        # Ahora puedes obtener la función de métrica directamente del diccionario
+        valor = metrics[data_dict['metrica']]
+
+        search_kwargs=dict(
+            pop_size=50,
+            memory_limit=20 * 1024 ** 3,
+        )
+
+        # Instantiate AutoML and define input/output types
+        automl = AutoML(
+            input=(Seq[Sentence], Supervised[VectorCategorical]), #MatrixContinuousSparse también buena opción
+            output=VectorCategorical,
+            search_timeout=int(data_dict['maxTime']) * Sec,
+            search_iterations=int(data_dict['limite']),
+            evaluation_timeout=40 * Sec,
+            cross_validation_steps=int(data_dict['crossval']),
+            validation_split=float(data_dict['inputVal']),
+            objectives=f1_score, #Sustituir por valor tras pruebas
+
+            search_algorithm=PESearch,  # algoritmo de búsqueda
+            registry=None,  # para incluir clases adicionales 
+            
+            include_filter=".*",  # indica qué módulos pueden incluirse en los pipelines evaluados
+            exclude_filter=None,  # indica módulos a excluir de los pipelines evaluados
+            
+            cross_validation="mean",  # tipo de agregación para los valores de la métrica en cada partición de la crossvalidación (promedio, mediana, etc.)
+            
+            random_state=None,  # semilla para el generador de números aleatorios
+            errors="warn",  # tratamiento ante errores
+            **search_kwargs
+        )
+
+        uri = f"http://172.17.0.2:4239"
+        mylogger = WebSocketLogger(uri,ip_data)
+        #print(train_data)
+        #print(train_labels)
+
+        # Run the pipeline search process
+        automl.fit(train_data, train_labels, logger=mylogger)
+
+        automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=data_dict['title'])
+
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{data_dict['title']}", f'description.txt'), 'w') as f:
+            f.write(f"Nombre: {data_dict['title']}\n")
+            f.write(f"Descripción: {data_dict['description']}\n")
+            f.write(f"Tipo de problema: {data_dict['problemaSeleccionado']}\n")
+            f.write(f"Variables predictoras: {seleccionadas['variablesPredictoras']}\n")
+            f.write(f"Variables objetivo: {seleccionadas['variablesObjetivo']}\n")
+            f.write(f"Datatype: {dataType}\n")
+            f.write(f"Metrica: {data_dict['metrica']}")
+        
+        with open(os.path.join(f"/home/coder/autogoal/autogoal/docs/api/temporalModels/{data_dict['title']}", "automl.pkl"), "wb") as f:
+            pickle.dump(automl, f)
+
+
 
     elif dataType != "":
         print("Data type is not accepted")

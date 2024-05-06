@@ -1,0 +1,7 @@
+Nombre: Cancer_Mama_04-05-2024
+Descripción: Conjunto de datos para predecir si es cancer benigno o maligno
+Tipo de problema: Clasificacion
+Variables predictoras: ['Grosor del grumo', 'Adhesión marginal', 'Uniformidad de la forma celular', 'Nucléolos normales']
+Variables objetivo: ['Clase']
+Datatype: integer
+Metrica: accuracy

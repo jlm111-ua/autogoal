@@ -349,7 +349,7 @@ class AutoML:
         os.system(f"docker save -o {name}.tar autogoal:production")
 
     def export_portable(
-        self, path=None, pipelines: List[Pipeline] = None, generate_zip=False, identifier=None, filename=None
+        self, path=None, pipelines: List[Pipeline] = None, generate_zip=False
     ):
         """
         Generates a portable set of files that can be used to export the model into a new Docker image.
@@ -360,13 +360,8 @@ class AutoML:
         """
         if path is None:
             path = os.getcwd()
-        
-        datapath = ""
-        if identifier is not None:
-            datapath = f"{path}/{identifier}"
-        else:
-            datapath = f"{path}/autogoal-export"
 
+        datapath = f"{path}/autogoal-export"
         final_path = Path(datapath)
         if final_path.exists():
             shutil.rmtree(datapath)
@@ -388,12 +383,8 @@ serve: build
         makefile.close()
 
         if generate_zip:
-            if filename is None:
-                filename = create_zip_file(datapath, "production_assets")
-                datapath = f"{path}/{filename}.zip"
-            else:
-                filename = create_zip_file(datapath, filename)
-                datapath = f"{path}/{filename}.zip"
+            filename = create_zip_file(datapath, "production_assets")
+            datapath = f"{path}/{filename}.zip"
 
         print("generated assets for production deployment")
 
