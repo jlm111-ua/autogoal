@@ -7,7 +7,7 @@ import base64
 import numpy as np
 from scipy import sparse as sp
 #from autogoal.ml import AutoML
-from autogoal.ml._automlApi import AutoMLApi as AutoML
+from autogoal.ml import AutoMLApi as AutoML
 from autogoal.utils import Min, Gb, Hour, Sec
 from autogoal.kb import *
 import requests
@@ -23,10 +23,13 @@ from autogoal.ml.metrics import (
 )
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc, f1_score
 from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
 #from autogoal.search import (Logger, PESearch, ConsoleLogger, ProgressLogger, MemoryLogger)
 from autogoal.kb import Seq, Sentence, VectorCategorical, Supervised
 from autogoal_contrib import find_classes
 from autogoal.search import (Logger, PESearch, ConsoleLogger, ProgressLogger, MemoryLogger)
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 def agregar_carpeta_a_zip(archivo_zip, carpeta):
     for raiz, _, archivos in os.walk(carpeta):
@@ -360,18 +363,47 @@ async def handle_connection(websocket, path):
         with open("/home/coder/autogoal/autogoal/docs/api/train_labels.data", "r") as file:
             train_labels = file.read().splitlines()
 
-        # Instanciar LabelEncoder
+        min_length = min(len(train_data), len(train_labels)) #Solucionar este error
+        train_data = train_data[:min_length]
+        train_labels = train_labels[:min_length]
+        class_col = seleccionadas['variablesObjetivo'][0]
+        text_col = seleccionadas['variablesPredictoras'][0]
+        
+        df = pd.DataFrame({
+            text_col: train_data,
+            class_col: train_labels
+        })
+
+        # obtener conjuntos de entrenamiento (90%) y validación (10%)
+        seed = 0  # fijar random_state para reproducibilidad
+        train, val = train_test_split(df, test_size=.1, stratify=df[class_col], random_state=seed)
+                
+        # instanciar TfidfVectorizer
+        vectorizer = TfidfVectorizer(stop_words='english', max_features=10000)
+
+        # instanciar LabelEncoder
         label_encoder = LabelEncoder()
 
+        # entrenar TfidfVectorizer
+        vectorizer.fit(train[text_col].to_list())
+
+        # guardar TfidfVectorizer entrenado para su posterior uso (codificar nuevos datos).
+        with open('vectorizer_reviews.pkl', 'wb') as f:
+            pickle.dump(vectorizer, f)
+
         # entrenar LabelEncoder
-        label_encoder.fit(train_labels)
+        label_encoder.fit(train[class_col])
 
         # guardar LabelEncoder entrenado para su posterior uso (codificar nuevos datos).
         with open('label_encoder_reviews.pkl', 'wb') as f:
             pickle.dump(label_encoder, f)
 
+        # obtener representaciones tf-idf correspondientes
+        train_tfidf = vectorizer.transform(train[text_col]) 
+        train_tfidf = train_tfidf.todense() 
+
         # codificar labels
-        train_labels = label_encoder.transform(train_labels)
+        train_labels = label_encoder.transform(train[class_col])
 
         valor=None
         metrics = {
@@ -390,7 +422,7 @@ async def handle_connection(websocket, path):
 
         # Instantiate AutoML and define input/output types
         automl = AutoML(
-            input=(Seq[Sentence], Supervised[VectorCategorical]), #MatrixContinuousSparse también buena opción
+            input=(MatrixContinuousDense,Supervised[VectorCategorical]),
             output=VectorCategorical,
             search_timeout=int(data_dict['maxTime']) * Sec,
             search_iterations=int(data_dict['limite']),
@@ -405,7 +437,8 @@ async def handle_connection(websocket, path):
             include_filter=".*",  # indica qué módulos pueden incluirse en los pipelines evaluados
             exclude_filter=None,  # indica módulos a excluir de los pipelines evaluados
             
-            cross_validation="mean",  # tipo de agregación para los valores de la métrica en cada partición de la crossvalidación (promedio, mediana, etc.)
+            cross_validation="mean",  # tipo de agregación para los valores de la métrica en cada partición de la crossvalidación 
+            # (promedio, mediana, etc.)
             
             random_state=None,  # semilla para el generador de números aleatorios
             errors="warn",  # tratamiento ante errores
@@ -414,11 +447,11 @@ async def handle_connection(websocket, path):
 
         uri = f"http://172.17.0.2:4239"
         mylogger = WebSocketLogger(uri,ip_data)
-        #print(train_data)
-        #print(train_labels)
+        print(train_tfidf)
+        print(train_labels)
 
         # Run the pipeline search process
-        automl.fit(train_data, train_labels, logger=mylogger)
+        automl.fit(train_tfidf, train_labels, logger=mylogger)
 
         automl.export_portable(path=f"/home/coder/autogoal/autogoal/docs/api/temporalModels/",generate_zip=True,identifier=data_dict['title'])
 

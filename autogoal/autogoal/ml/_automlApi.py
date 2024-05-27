@@ -11,45 +11,8 @@ from autogoal.utils import (
     ensure_directory,
 )
 
-
+@nice_repr
 class AutoMLApi(AutoML):
-
-
-    def __init__(self,
-        input=None,
-        output=None,
-        random_state=None,
-        search_algorithm=None,
-        search_iterations=100,
-        include_filter=".*",
-        exclude_filter=None,
-        validation_split=0.3,
-        errors="warn",
-        cross_validation="median",
-        cross_validation_steps=3,
-        registry=None,
-        objectives=None,
-        remote_sources: List[Tuple[str, int] or str] = None,
-        **search_kwargs,
-    ):
-
-        super().__init__(
-            input=input,
-            output=output,
-            random_state=random_state,
-            search_algorithm=search_algorithm,
-            search_iterations=search_iterations,
-            include_filter=include_filter,
-            exclude_filter=exclude_filter,
-            validation_split=validation_split,
-            errors=errors,
-            cross_validation=cross_validation,
-            cross_validation_steps=cross_validation_steps,
-            registry=registry,
-            objectives=objectives,
-            remote_sources=remote_sources,
-            **search_kwargs,
-        )
     
     def export_portable(
         self, path=None, pipelines: List[Pipeline] = None, generate_zip=False, identifier=None, filename=None

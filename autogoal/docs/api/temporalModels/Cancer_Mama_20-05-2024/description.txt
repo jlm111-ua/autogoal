@@ -1,0 +1,7 @@
+Nombre: Cancer_Mama_20-05-2024
+Descripción: Conjunto de datos para predecir si es cancer benigno o maligno
+Tipo de problema: Clasificacion
+Variables predictoras: ['Uniformidad del tamaño celular', 'Uniformidad de la forma celular', 'Tamaño de célula epitelial única', 'Mitosis']
+Variables objetivo: ['Clase']
+Datatype: integer
+Metrica: accuracy
