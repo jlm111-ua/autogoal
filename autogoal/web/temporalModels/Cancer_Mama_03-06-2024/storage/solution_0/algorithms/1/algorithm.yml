@@ -1,0 +1,7 @@
+module: '''autogoal_sklearn._generated.PCA'''
+name: PCA
+params:
+  iterated_power: randomized
+  svd_solver: arpack
+  tol: -0.992
+  whiten: true

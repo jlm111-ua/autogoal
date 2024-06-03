@@ -1,0 +1,3 @@
+module: '''autogoal_sklearn._generated.LatentDirichletAllocation'''
+name: LatentDirichletAllocation
+params: {}

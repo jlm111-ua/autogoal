@@ -1,0 +1,4 @@
+module: '''autogoal_sklearn._generated.MultinomialNB'''
+name: MultinomialNB
+params:
+  fit_prior: true

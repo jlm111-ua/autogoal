@@ -1,7 +1,0 @@
-Nombre: Ejemplo_Review_20_05_2024
-Descripción: Conjunto de datos para predecir el sentimiento a partir de una frase
-Tipo de problema: Clasificacion
-Variables predictoras: ['Phrase']
-Variables objetivo: ['Sentiment']
-Datatype: string
-Metrica: accuracy
